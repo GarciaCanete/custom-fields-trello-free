@@ -25,41 +25,21 @@
       return Promise.all([
         t.get('board', 'shared', 'fieldDefs'),
         t.get('card', 'shared', 'fieldValues'),
-        t.card('id')
+        t.card('checklists')
       ]).then(function(data) {
         var defs = data[0] || [];
         var values = data[1] || {};
         var card = data[2] || {};
+        var checklists = card.checklists || [];
 
         renderFields(defs, values);
-
-        return loadChecklists(card.id).then(function(checklists) {
-          renderChecklists(checklists);
-        });
+        renderChecklists(checklists);
       });
     });
 
-    // Refresco periódico para detectar cambios nativos de Trello
     setInterval(function() {
       t.render();
-    }, 5000);
-
-    function loadChecklists(cardId) {
-      var restApi = t.getRestApi();
-
-      return restApi.isAuthorized()
-        .then(function(isAuthorized) {
-          if (!isAuthorized) {
-            return [];
-          }
-
-          return restApi.get('/1/cards/' + cardId + '/checklists');
-        })
-        .catch(function(err) {
-          console.error('Error loading checklists', err);
-          return [];
-        });
-    }
+    }, 3000);
 
     var renderFields = function(defs, values) {
       var container = document.getElementById('custom-fields-display');
@@ -160,7 +140,7 @@
           return;
         }
 
-        t.set('card', 'shared', 'fieldValues', newValues).then(function() {
+        saveFieldValues(newValues).then(function() {
           t.alert({
             message: 'Campos guardados',
             duration: 2
@@ -171,6 +151,27 @@
 
       container.appendChild(form);
     };
+
+    function saveFieldValues(newValues) {
+      return t.card('id', 'name')
+        .then(function(card) {
+          return Promise.all([
+            t.set('card', 'shared', 'fieldValues', newValues),
+            t.get('board', 'shared', 'fieldIndex')
+          ]).then(function(results) {
+            var fieldIndex = results[1] || {};
+
+            fieldIndex[card.id] = {
+              cardId: card.id,
+              cardName: card.name,
+              values: newValues,
+              updatedAt: new Date().toISOString()
+            };
+
+            return t.set('board', 'shared', 'fieldIndex', fieldIndex);
+          });
+        });
+    }
 
     var renderChecklists = function(checklists) {
       var container = document.getElementById('checklists-container');

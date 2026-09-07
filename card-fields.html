@@ -68,7 +68,7 @@
       
       fieldDefs.sort((a,b) => a.order - b.order).forEach(f => {
         var cell = document.createElement('div');
-        cell.className = 'cf-cell' + (f.width === 'full' ? ' cf-cell-full' : '');
+        cell.className = 'cf-cell cf-cell-full';
         
         var label = document.createElement('label');
         label.innerText = f.name + (f.required ? ' *' : '');
@@ -213,10 +213,31 @@
         return;
       }
       
-      t.set('card', 'shared', 'fieldValues', newValues).then(function() {
+      saveFieldValues(newValues).then(function() {
         t.closePopup();
       });
     };
+
+    function saveFieldValues(newValues) {
+      return t.card('id', 'name')
+        .then(function(card) {
+          return Promise.all([
+            t.set('card', 'shared', 'fieldValues', newValues),
+            t.get('board', 'shared', 'fieldIndex')
+          ]).then(function(results) {
+            var fieldIndex = results[1] || {};
+
+            fieldIndex[card.id] = {
+              cardId: card.id,
+              cardName: card.name,
+              values: newValues,
+              updatedAt: new Date().toISOString()
+            };
+
+            return t.set('board', 'shared', 'fieldIndex', fieldIndex);
+          });
+        });
+    }
 
     document.getElementById('apply-title').onclick = function() {
       if (specialSettings.enabled) {

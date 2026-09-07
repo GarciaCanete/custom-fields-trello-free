@@ -29,13 +29,6 @@
           <option value="list">Lista de opciones</option>
         </select>
       </div>
-      <div style="flex:1;">
-        <label>Ancho</label>
-        <select id="field-width">
-          <option value="half">Mitad (50%)</option>
-          <option value="full">Completo (100%)</option>
-        </select>
-      </div>
     </div>
 
     <div id="options-container" style="display:none;">
@@ -94,7 +87,7 @@
         var div = document.createElement('div');
         div.className = 'field-item';
         div.innerHTML = `
-          <strong>${f.name}</strong> (${f.type}) - ${f.width === 'full' ? '100%' : '50%'} 
+          <strong>${f.name}</strong> (${f.type})
           ${f.required ? '<span style="color:var(--red-error)">[Req]</span>' : ''}
           <div class="field-actions">
             <button onclick="editField('${f.id}')">Editar</button>
@@ -150,7 +143,6 @@
       var id = document.getElementById('field-id').value || 'f_' + Date.now();
       var name = document.getElementById('field-name').value;
       var type = document.getElementById('field-type').value;
-      var width = document.getElementById('field-width').value;
       var required = document.getElementById('field-required').checked;
       var optionsRaw = document.getElementById('field-options').value;
       var options = optionsRaw ? optionsRaw.split(',').map(s => s.trim()).filter(s => s) : [];
@@ -159,10 +151,10 @@
 
       var existingIdx = fieldDefs.findIndex(f => f.id === id);
       if (existingIdx > -1) {
-        fieldDefs[existingIdx] = { ...fieldDefs[existingIdx], name, type, width, required, options };
+        fieldDefs[existingIdx] = { ...fieldDefs[existingIdx], name, type, required, options };
       } else {
         var maxOrder = fieldDefs.length > 0 ? Math.max(...fieldDefs.map(f => f.order)) : -1;
-        fieldDefs.push({ id, name, type, width, required, options, order: maxOrder + 1 });
+        fieldDefs.push({ id, name, type, required, options, order: maxOrder + 1 });
       }
 
       t.set('board', 'shared', 'fieldDefs', fieldDefs).then(() => {
@@ -177,7 +169,6 @@
       document.getElementById('field-id').value = f.id;
       document.getElementById('field-name').value = f.name;
       document.getElementById('field-type').value = f.type;
-      document.getElementById('field-width').value = f.width;
       document.getElementById('field-required').checked = !!f.required;
       document.getElementById('field-options').value = (f.options || []).join(', ');
       document.getElementById('options-container').style.display = (f.type === 'list') ? 'block' : 'none';
@@ -209,7 +200,6 @@
       document.getElementById('field-id').value = '';
       document.getElementById('field-name').value = '';
       document.getElementById('field-type').value = 'text';
-      document.getElementById('field-width').value = 'half';
       document.getElementById('field-required').checked = false;
       document.getElementById('field-options').value = '';
       document.getElementById('options-container').style.display = 'none';
