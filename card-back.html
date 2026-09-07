@@ -6,16 +6,15 @@
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
 </head>
 <body>
-  <div id="custom-fields-display" class="cf-grid">
-    <!-- Campos se renderizan aquí -->
+  <div id="custom-fields-display">
+    <!-- Campos editables se renderizan aquí -->
   </div>
 
   <hr>
 
   <div id="checklists-progress">
-    <label>Progreso de Checklists</label>
     <div id="checklists-container">
-      <!-- Barras de progreso aquí -->
+      <!-- Barras de progreso y checklists aquí -->
     </div>
   </div>
 
@@ -26,100 +25,201 @@
       return Promise.all([
         t.get('board', 'shared', 'fieldDefs'),
         t.get('card', 'shared', 'fieldValues'),
-        t.card('checklists')
+        t.card('id')
       ]).then(function(data) {
         var defs = data[0] || [];
         var values = data[1] || {};
-        var checklists = data[2].checklists || [];
+        var card = data[2] || {};
 
         renderFields(defs, values);
-        renderChecklists(checklists);
+
+        return loadChecklists(card.id).then(function(checklists) {
+          renderChecklists(checklists);
+        });
       });
     });
+
+    // Refresco periódico para detectar cambios nativos de Trello
+    setInterval(function() {
+      t.render();
+    }, 5000);
+
+    function loadChecklists(cardId) {
+      var restApi = t.getRestApi();
+
+      return restApi.isAuthorized()
+        .then(function(isAuthorized) {
+          if (!isAuthorized) {
+            return [];
+          }
+
+          return restApi.get('/1/cards/' + cardId + '/checklists');
+        })
+        .catch(function(err) {
+          console.error('Error loading checklists', err);
+          return [];
+        });
+    }
 
     var renderFields = function(defs, values) {
       var container = document.getElementById('custom-fields-display');
       container.innerHTML = '';
-      
-      var hasVisibleFields = false;
-      defs.sort((a,b) => a.order - b.order).forEach(f => {
-        var val = values[f.id];
-        if (val === undefined || val === null || val === '' || val === false) return;
-        
-        hasVisibleFields = true;
-        var cell = document.createElement('div');
-        cell.className = 'cf-cell' + (f.width === 'full' ? ' cf-cell-full' : '');
-        
-        var label = document.createElement('label');
-        label.innerText = f.name;
-        cell.appendChild(label);
-        
-        var content = document.createElement('div');
-        content.style.padding = '4px 0';
-        
-        if (f.type === 'checkbox') {
-          content.innerText = '✅';
-        } else if (f.type === 'textarea') {
-          content.style.whiteSpace = 'pre-wrap';
-          content.innerText = val;
-        } else {
-          content.innerText = val;
-        }
-        
-        cell.appendChild(content);
-        container.appendChild(cell);
+
+      defs = defs.sort(function(a, b) {
+        return a.order - b.order;
       });
 
-      if (!hasVisibleFields) {
-        container.innerHTML = '<p style="color:var(--text-hint); font-size:12px;">Sin campos configurados o con valores.</p>';
+      if (defs.length === 0) {
+        container.innerHTML = '<p class="empty-message">Sin campos configurados.</p>';
+        return;
       }
+
+      var form = document.createElement('form');
+      form.id = 'inline-fields-form';
+      form.className = 'inline-fields-form';
+
+      defs.forEach(function(f) {
+        var row = document.createElement('div');
+        row.className = 'inline-field-row';
+
+        var label = document.createElement('label');
+        label.htmlFor = 'inline-input-' + f.id;
+        label.innerText = f.name + (f.required ? ' *' : '') + ':';
+
+        var value = values[f.id] || '';
+        var input;
+
+        if (f.type === 'textarea') {
+          input = document.createElement('textarea');
+          input.value = value;
+          input.rows = 2;
+        } else if (f.type === 'list') {
+          input = document.createElement('select');
+
+          var emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.text = '— Seleccionar —';
+          input.appendChild(emptyOpt);
+
+          (f.options || []).forEach(function(opt) {
+            var option = document.createElement('option');
+            option.value = opt;
+            option.text = opt;
+            if (opt === value) option.selected = true;
+            input.appendChild(option);
+          });
+        } else if (f.type === 'checkbox') {
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = !!value;
+        } else {
+          input = document.createElement('input');
+          input.type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+          input.value = value;
+        }
+
+        input.id = 'inline-input-' + f.id;
+        input.name = f.id;
+        input.dataset.fieldType = f.type;
+
+        row.appendChild(label);
+        row.appendChild(input);
+        form.appendChild(row);
+      });
+
+      var actions = document.createElement('div');
+      actions.className = 'inline-field-actions';
+
+      var saveButton = document.createElement('button');
+      saveButton.type = 'submit';
+      saveButton.className = 'primary';
+      saveButton.innerText = 'Guardar campos';
+
+      actions.appendChild(saveButton);
+      form.appendChild(actions);
+
+      form.onsubmit = function(e) {
+        e.preventDefault();
+
+        var newValues = {};
+        var missing = [];
+
+        defs.forEach(function(f) {
+          var input = document.getElementById('inline-input-' + f.id);
+          var val = f.type === 'checkbox' ? input.checked : input.value;
+
+          if (f.required && f.type !== 'checkbox' && (!val || String(val).trim() === '')) {
+            missing.push(f.name);
+          }
+
+          newValues[f.id] = val;
+        });
+
+        if (missing.length > 0) {
+          alert('Los siguientes campos son requeridos: ' + missing.join(', '));
+          return;
+        }
+
+        t.set('card', 'shared', 'fieldValues', newValues).then(function() {
+          t.alert({
+            message: 'Campos guardados',
+            duration: 2
+          });
+          return t.render();
+        });
+      };
+
+      container.appendChild(form);
     };
 
     var renderChecklists = function(checklists) {
       var container = document.getElementById('checklists-container');
       container.innerHTML = '';
-      
-      if (checklists.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-hint); font-size:12px;">No hay checklists en esta tarjeta.</p>';
+
+      var totalAll = 0;
+      var doneAll = 0;
+
+      (checklists || []).forEach(function(cl) {
+        (cl.checkItems || []).forEach(function(item) {
+          totalAll++;
+          if (item.state === 'complete') {
+            doneAll++;
+          }
+        });
+      });
+
+      var pctTotal = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
+
+      var title = document.createElement('div');
+      title.className = 'checklist-progress-title';
+      title.innerHTML = '<strong>Checklist</strong>: ' + doneAll + '/' + totalAll + ' (' + pctTotal + '%)';
+      container.appendChild(title);
+      container.appendChild(createProgressBar(pctTotal));
+
+      if (!checklists || checklists.length === 0) {
         return;
       }
 
-      var totalAll = 0, doneAll = 0;
+      checklists.forEach(function(cl) {
+        var total = 0;
+        var done = 0;
 
-      checklists.forEach(cl => {
-        var total = 0, done = 0;
-        (cl.checkItems || []).forEach(item => {
+        (cl.checkItems || []).forEach(function(item) {
           total++;
-          totalAll++;
           if (item.state === 'complete') {
             done++;
-            doneAll++;
           }
         });
 
         var pct = total > 0 ? Math.round((done / total) * 100) : 0;
-        
-        var title = document.createElement('div');
-        title.style.fontSize = '12px';
-        title.style.marginTop = '8px';
-        title.innerHTML = `<strong>${cl.name}</strong>: ${done}/${total} (${pct}%)`;
-        container.appendChild(title);
 
+        var checklistTitle = document.createElement('div');
+        checklistTitle.className = 'checklist-progress-title';
+        checklistTitle.innerHTML = '<strong>' + cl.name + '</strong>: ' + done + '/' + total + ' (' + pct + '%)';
+
+        container.appendChild(checklistTitle);
         container.appendChild(createProgressBar(pct));
       });
-
-      // Total general si hay más de una checklist
-      if (checklists.length > 1) {
-        var pctTotal = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
-        var title = document.createElement('div');
-        title.style.fontSize = '13px';
-        title.style.marginTop = '15px';
-        title.style.borderTop = '1px solid var(--border)';
-        title.style.paddingTop = '8px';
-        title.innerHTML = `<strong>Progreso Total</strong>: ${doneAll}/${totalAll} (${pctTotal}%)`;
-        container.appendChild(title);
-        container.appendChild(createProgressBar(pctTotal));
-      }
     };
 
     function createProgressBar(pct) {

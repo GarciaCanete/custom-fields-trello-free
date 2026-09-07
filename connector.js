@@ -3,31 +3,57 @@ var GRAY_ICON = BASE_URL + 'icon.svg';
 var WHITE_ICON = BASE_URL + 'icon.svg';
 
 var getChecklistProgress = function(t) {
-  return t.card('checklists').then(function(card) {
-    var total = 0, done = 0;
-    (card.checklists || []).forEach(function(cl) {
-      (cl.checkItems || []).forEach(function(item) {
-        total++;
-        if (item.state === 'complete') done++;
+  return t.card('id').then(function(card) {
+    var restApi = t.getRestApi();
+
+    return restApi.isAuthorized()
+      .then(function(isAuthorized) {
+        if (!isAuthorized) {
+          return {
+            text: '0/0 (0%)',
+            color: 'red'
+          };
+        }
+
+        return restApi.get('/1/cards/' + card.id + '/checklists')
+          .then(function(checklists) {
+            var total = 0;
+            var done = 0;
+
+            (checklists || []).forEach(function(cl) {
+              (cl.checkItems || []).forEach(function(item) {
+                total++;
+                if (item.state === 'complete') {
+                  done++;
+                }
+              });
+            });
+
+            var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            var color = 'red';
+
+            if (pct >= 100 && total > 0) color = 'green';
+            else if (pct >= 50) color = 'yellow';
+
+            return {
+              text: done + '/' + total + ' (' + pct + '%)',
+              color: color
+            };
+          });
+      })
+      .catch(function(err) {
+        console.error('Error reading checklist progress', err);
+        return {
+          text: '0/0 (0%)',
+          color: 'red'
+        };
       });
-    });
-    if (total === 0) return null;
-    var pct = Math.round((done / total) * 100);
-    var color = 'red';
-    if (pct >= 100) color = 'green';
-    else if (pct >= 50) color = 'yellow';
-    
-    return {
-      text: done + '/' + total + ' (' + pct + '%)',
-      color: color
-    };
   });
 };
 
 TrelloPowerUp.initialize({
   'card-badges': function(t, options) {
     return getChecklistProgress(t).then(function(progress) {
-      if (!progress) return [];
       return [{
         text: progress.text,
         color: progress.color,
@@ -37,7 +63,6 @@ TrelloPowerUp.initialize({
   },
   'card-detail-badges': function(t, options) {
     return getChecklistProgress(t).then(function(progress) {
-      if (!progress) return [];
       return [{
         title: 'Progreso Checklists',
         text: progress.text,

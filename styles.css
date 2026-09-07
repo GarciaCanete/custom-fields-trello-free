@@ -134,6 +134,98 @@ button.secondary {
 .progress-orange { background-color: #ff9900; }
 .progress-green { background-color: var(--green-success); }
 
+/* Inline editable fields on card back */
+.inline-fields-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inline-field-row {
+  display: grid;
+  grid-template-columns: 150px minmax(180px, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.inline-field-row label {
+  margin: 0;
+  text-transform: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.inline-field-row input[type="text"],
+.inline-field-row input[type="number"],
+.inline-field-row input[type="date"],
+.inline-field-row select,
+.inline-field-row textarea {
+  margin-bottom: 0;
+}
+
+.inline-field-row input[type="checkbox"] {
+  width: auto;
+  justify-self: start;
+}
+
+.inline-field-actions {
+  margin-top: 8px;
+}
+
+.empty-message {
+  color: var(--text-hint);
+  font-size: 12px;
+  margin: 0;
+}
+
+/* Checklist section inside Power-Up card back */
+.checklist-block {
+  margin-top: 10px;
+}
+
+.checklist-progress-title {
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--text-main);
+}
+
+.checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.checklist-item-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.checklist-item-complete {
+  text-decoration: line-through;
+  color: var(--text-hint);
+}
+
+.checklist-total-title {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 12px;
+}
+
 /* Settings styles */
 .field-item {
   border: 1px solid var(--border);
