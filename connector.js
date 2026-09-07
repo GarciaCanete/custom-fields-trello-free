@@ -1,5 +1,6 @@
-var GRAY_ICON = 'https://cdn.hyperdev.com/us-east-1%3A3d31b21c-02d0-492d-ad3f-bf1174e4fe07%2Ficon-gray.svg';
-var WHITE_ICON = 'https://cdn.hyperdev.com/us-east-1%3A3d31b21c-02d0-492d-ad3f-bf1174e4fe07%2Ficon-white.svg';
+var BASE_URL = 'https://garciacanete.github.io/custom-fields-trello-free/';
+var GRAY_ICON = BASE_URL + 'icon.svg';
+var WHITE_ICON = BASE_URL + 'icon.svg';
 
 var getChecklistProgress = function(t) {
   return t.card('checklists').then(function(card) {
@@ -50,7 +51,7 @@ TrelloPowerUp.initialize({
       icon: GRAY_ICON,
       content: {
         type: 'iframe',
-        url: t.signUrl('./card-back.html'),
+        url: t.signUrl(BASE_URL + 'card-back.html'),
         height: 200
       }
     };
@@ -62,7 +63,7 @@ TrelloPowerUp.initialize({
       callback: function(t) {
         return t.popup({
           title: 'Editar Campos',
-          url: './card-fields.html',
+          url: t.signUrl(BASE_URL + 'card-fields.html'),
           height: 400
         });
       }
@@ -75,7 +76,7 @@ TrelloPowerUp.initialize({
       callback: function(t) {
         return t.popup({
           title: 'Configuración de Campos',
-          url: './settings.html',
+          url: t.signUrl(BASE_URL + 'settings.html'),
           height: 600
         });
       }
@@ -84,7 +85,7 @@ TrelloPowerUp.initialize({
   'show-settings': function(t, options) {
     return t.popup({
       title: 'Configuración del Power-Up',
-      url: './settings.html',
+      url: t.signUrl(BASE_URL + 'settings.html'),
       height: 600
     });
   },
