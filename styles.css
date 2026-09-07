@@ -4,6 +4,7 @@
   --text-hint: #5e6c84;
   --border: #dfe1e6;
   --bg-form: #f4f5f7;
+  --bg-input: #fafbfc;
   --blue-action: #0052cc;
   --red-error: #bf2600;
   --bg-error: #ffebe6;
@@ -13,14 +14,33 @@
   --yellow-badge-text: #974f0c;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-main: #b6c2cf;
+    --text-sub: #9fadbc;
+    --text-hint: #8c9bab;
+    --border: #38414d;
+    --bg-form: #1d2125;
+    --bg-input: #22272b;
+    --blue-action: #579dff;
+    --red-error: #f87168;
+    --bg-error: #441c19;
+    --green-success: #4bce97;
+    --bg-success: #1c3329;
+    --yellow-badge-bg: #f5cd47;
+    --yellow-badge-text: #2c2307;
+  }
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   color: var(--text-main);
+  background-color: transparent;
   margin: 0;
   padding: 10px;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
   color: var(--text-main);
   margin-top: 0;
 }
@@ -43,9 +63,11 @@ textarea {
   padding: 8px;
   border: 2px solid var(--border);
   border-radius: 3px;
-  background-color: #fafbfc;
+  background-color: var(--bg-input);
+  color: var(--text-main);
   box-sizing: border-box;
   margin-bottom: 8px;
+  font-size: 14px;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -55,6 +77,7 @@ input:focus, select:focus, textarea:focus {
 
 button {
   background-color: var(--border);
+  color: var(--text-main);
   border: none;
   border-radius: 3px;
   padding: 6px 12px;
@@ -117,7 +140,7 @@ button.secondary {
   padding: 10px;
   margin-bottom: 10px;
   border-radius: 4px;
-  background: white;
+  background: var(--bg-form);
 }
 
 .field-actions {

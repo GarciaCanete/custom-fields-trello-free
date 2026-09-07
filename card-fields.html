@@ -10,6 +10,18 @@
     <div id="fields-container" class="cf-grid">
       <!-- Los campos se renderizan aquí -->
     </div>
+
+    <div id="special-fields-container" class="cf-grid" style="display:none; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+      <div class="cf-cell">
+        <label>Prefijo</label>
+        <select id="prefix-select"></select>
+      </div>
+      <div class="cf-cell">
+        <label>Título Corto (máx 15 palabras)</label>
+        <input type="text" id="short-title-input" placeholder="Escribe el título corto...">
+        <p id="word-count-hint" style="font-size: 10px; color: var(--text-hint); margin-top: -5px;"></p>
+      </div>
+    </div>
     
     <div id="title-preview-section" style="display:none; margin-top: 15px; padding: 10px; background: var(--bg-form); border-radius: 4px;">
       <label>Vista previa del Título</label>
@@ -28,6 +40,7 @@
     var fieldDefs = [];
     var fieldValues = {};
     var titleSettings = { enabled: false, pattern: '' };
+    var specialSettings = { enabled: false, prefixes: '', pattern: '' };
     var originalCardName = '';
 
     t.render(function() {
@@ -35,12 +48,14 @@
         t.get('board', 'shared', 'fieldDefs'),
         t.get('card', 'shared', 'fieldValues'),
         t.get('board', 'shared', 'titlePattern'),
+        t.get('board', 'shared', 'specialTitlePattern'),
         t.card('name')
       ]).then(function(data) {
         fieldDefs = data[0] || [];
         fieldValues = data[1] || {};
         titleSettings = data[2] || { enabled: false, pattern: '' };
-        originalCardName = data[3].name;
+        specialSettings = data[3] || { enabled: false, prefixes: '', pattern: '' };
+        originalCardName = data[4].name;
 
         renderForm();
         updateTitlePreview();
@@ -98,15 +113,56 @@
         container.appendChild(cell);
       });
 
-      if (titleSettings.enabled && titleSettings.pattern) {
+      if (specialSettings.enabled) {
+        var specialValues = fieldValues['_special_'] || { prefix: '', shortTitle: '' };
+        var specialContainer = document.getElementById('special-fields-container');
+        specialContainer.style.display = 'grid';
+        
+        var prefixSelect = document.getElementById('prefix-select');
+        prefixSelect.innerHTML = '';
+        var prefixes = specialSettings.prefixes.split(',').map(s => s.trim()).filter(s => s);
+        prefixes.forEach(p => {
+          var opt = document.createElement('option');
+          opt.value = p;
+          opt.text = p;
+          if (p === specialValues.prefix) opt.selected = true;
+          prefixSelect.appendChild(opt);
+        });
+        prefixSelect.onchange = updateTitlePreview;
+
+        var shortTitleInput = document.getElementById('short-title-input');
+        shortTitleInput.value = specialValues.shortTitle || '';
+        shortTitleInput.oninput = function() {
+          var words = this.value.trim().split(/\s+/).filter(w => w.length > 0);
+          var count = words.length;
+          document.getElementById('word-count-hint').innerText = count + ' / 15 palabras';
+          document.getElementById('word-count-hint').style.color = count > 15 ? 'var(--red-error)' : 'var(--text-hint)';
+          updateTitlePreview();
+        };
+        // Trigger initial count
+        shortTitleInput.oninput();
+      }
+
+      if ((titleSettings.enabled && titleSettings.pattern) || (specialSettings.enabled && specialSettings.pattern)) {
         document.getElementById('title-preview-section').style.display = 'block';
       }
     };
 
     var updateTitlePreview = function() {
-      if (!titleSettings.enabled || !titleSettings.pattern) return;
+      var newTitle = '';
       
-      var newTitle = titleSettings.pattern;
+      if (specialSettings.enabled && specialSettings.pattern) {
+        newTitle = specialSettings.pattern;
+        var prefix = document.getElementById('prefix-select').value;
+        var shortTitle = document.getElementById('short-title-input').value;
+        
+        newTitle = newTitle.replace(/\{Prefix\}/gi, prefix || '…');
+        newTitle = newTitle.replace(/\{ShortTitle\}/gi, shortTitle || '…');
+      } else if (titleSettings.enabled && titleSettings.pattern) {
+        newTitle = titleSettings.pattern;
+      } else {
+        return;
+      }
       
       fieldDefs.forEach(f => {
         var input = document.getElementById('input-' + f.id);
@@ -144,6 +200,13 @@
         }
         newValues[f.id] = val;
       });
+
+      if (specialSettings.enabled) {
+        newValues['_special_'] = {
+          prefix: document.getElementById('prefix-select').value,
+          shortTitle: document.getElementById('short-title-input').value
+        };
+      }
       
       if (missing.length > 0) {
         alert('Los siguientes campos son requeridos: ' + missing.join(', '));
@@ -156,6 +219,15 @@
     };
 
     document.getElementById('apply-title').onclick = function() {
+      if (specialSettings.enabled) {
+        var shortTitle = document.getElementById('short-title-input').value;
+        var words = shortTitle.trim().split(/\s+/).filter(w => w.length > 0);
+        if (words.length > 15) {
+          alert('El Título Corto no puede superar las 15 palabras.');
+          return;
+        }
+      }
+
       var newTitle = document.getElementById('title-preview').innerText;
       var restApi = t.getRestApi();
       

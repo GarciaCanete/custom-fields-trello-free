@@ -53,10 +53,26 @@
 
   <hr>
 
-  <h4>Patrón de Título</h4>
+  <h4>Patrón de Título Especial</h4>
   <div style="background: var(--bg-form); padding: 10px; border-radius: 4px;">
     <div style="margin-bottom: 10px;">
-      <input type="checkbox" id="title-enabled"> <label style="display:inline; text-transform: none;">Activar actualización automática del título</label>
+      <input type="checkbox" id="special-pattern-enabled"> <label style="display:inline; text-transform: none;">Usar patrón con Prefijo y Título Corto (15 palabras)</label>
+    </div>
+    <div id="special-pattern-config" style="display:none;">
+      <label>Prefijos disponibles (separados por coma)</label>
+      <input type="text" id="special-prefixes" placeholder="MS, BSM, MSX">
+      <label>Patrón Especial (ej: {Prefix} - {ShortTitle})</label>
+      <input type="text" id="special-pattern" placeholder="{Prefix} - {ShortTitle}">
+    </div>
+    <button id="save-special-settings" class="secondary">Guardar Configuración Especial</button>
+  </div>
+
+  <hr>
+
+  <h4>Patrón de Título General</h4>
+  <div style="background: var(--bg-form); padding: 10px; border-radius: 4px;">
+    <div style="margin-bottom: 10px;">
+      <input type="checkbox" id="title-enabled"> <label style="display:inline; text-transform: none;">Activar actualización automática del título (General)</label>
     </div>
     <label>Patrón (ej: {Prioridad} | {Título})</label>
     <input type="text" id="title-pattern" placeholder="{Campo1} - {Título}">
@@ -68,6 +84,7 @@
     var t = TrelloPowerUp.iframe();
     var fieldDefs = [];
     var titleSettings = { enabled: false, pattern: '' };
+    var specialSettings = { enabled: false, prefixes: 'MS, BSM, MSX', pattern: '{Prefix} - {ShortTitle}' };
 
     var renderFields = function() {
       var container = document.getElementById('fields-list');
@@ -93,17 +110,37 @@
     t.render(function() {
       return Promise.all([
         t.get('board', 'shared', 'fieldDefs'),
-        t.get('board', 'shared', 'titlePattern')
+        t.get('board', 'shared', 'titlePattern'),
+        t.get('board', 'shared', 'specialTitlePattern')
       ]).then(function(data) {
         fieldDefs = data[0] || [];
         titleSettings = data[1] || { enabled: false, pattern: '' };
+        specialSettings = data[2] || { enabled: false, prefixes: 'MS, BSM, MSX', pattern: '{Prefix} - {ShortTitle}' };
         
         document.getElementById('title-enabled').checked = titleSettings.enabled;
         document.getElementById('title-pattern').value = titleSettings.pattern || '';
+
+        document.getElementById('special-pattern-enabled').checked = specialSettings.enabled;
+        document.getElementById('special-prefixes').value = specialSettings.prefixes || '';
+        document.getElementById('special-pattern').value = specialSettings.pattern || '';
+        document.getElementById('special-pattern-config').style.display = specialSettings.enabled ? 'block' : 'none';
         
         renderFields();
       });
     });
+
+    document.getElementById('special-pattern-enabled').onchange = function() {
+      document.getElementById('special-pattern-config').style.display = this.checked ? 'block' : 'none';
+    };
+
+    document.getElementById('save-special-settings').onclick = function() {
+      specialSettings.enabled = document.getElementById('special-pattern-enabled').checked;
+      specialSettings.prefixes = document.getElementById('special-prefixes').value;
+      specialSettings.pattern = document.getElementById('special-pattern').value;
+      t.set('board', 'shared', 'specialTitlePattern', specialSettings).then(() => {
+        t.alert({ message: 'Configuración especial guardada', duration: 3 });
+      });
+    };
 
     document.getElementById('field-type').onchange = function() {
       document.getElementById('options-container').style.display = (this.value === 'list') ? 'block' : 'none';
