@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <form id="fields-form">
+    <div id="fields-container" class="cf-grid">
+      <!-- Los campos se renderizan aquí -->
+    </div>
+    
+    <div id="title-preview-section" style="display:none; margin-top: 15px; padding: 10px; background: var(--bg-form); border-radius: 4px;">
+      <label>Vista previa del Título</label>
+      <div id="title-preview" style="font-weight: bold; margin-bottom: 8px; word-break: break-all;"></div>
+      <button type="button" id="apply-title" class="secondary">Aplicar Título a la Tarjeta</button>
+      <p id="auth-hint" style="font-size: 10px; color: var(--text-hint); margin-top: 5px; display: none;">Se requerirá autorización la primera vez.</p>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <button type="submit" class="primary">Guardar Cambios</button>
+    </div>
+  </form>
+
+  <script>
+    var t = TrelloPowerUp.iframe();
+    var fieldDefs = [];
+    var fieldValues = {};
+    var titleSettings = { enabled: false, pattern: '' };
+    var originalCardName = '';
+
+    t.render(function() {
+      return Promise.all([
+        t.get('board', 'shared', 'fieldDefs'),
+        t.get('card', 'shared', 'fieldValues'),
+        t.get('board', 'shared', 'titlePattern'),
+        t.card('name')
+      ]).then(function(data) {
+        fieldDefs = data[0] || [];
+        fieldValues = data[1] || {};
+        titleSettings = data[2] || { enabled: false, pattern: '' };
+        originalCardName = data[3].name;
+
+        renderForm();
+        updateTitlePreview();
+      });
+    });
+
+    var renderForm = function() {
+      var container = document.getElementById('fields-container');
+      container.innerHTML = '';
+      
+      fieldDefs.sort((a,b) => a.order - b.order).forEach(f => {
+        var cell = document.createElement('div');
+        cell.className = 'cf-cell' + (f.width === 'full' ? ' cf-cell-full' : '');
+        
+        var label = document.createElement('label');
+        label.innerText = f.name + (f.required ? ' *' : '');
+        cell.appendChild(label);
+        
+        var value = fieldValues[f.id] || '';
+        var input;
+        
+        if (f.type === 'textarea') {
+          input = document.createElement('textarea');
+          input.value = value;
+          input.rows = 3;
+        } else if (f.type === 'list') {
+          input = document.createElement('select');
+          var emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.text = '— Seleccionar —';
+          input.appendChild(emptyOpt);
+          (f.options || []).forEach(opt => {
+            var o = document.createElement('option');
+            o.value = opt;
+            o.text = opt;
+            if (opt === value) o.selected = true;
+            input.appendChild(o);
+          });
+        } else if (f.type === 'checkbox') {
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = !!value;
+          input.style.width = 'auto';
+        } else {
+          input = document.createElement('input');
+          input.type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+          input.value = value;
+        }
+        
+        input.name = f.id;
+        input.id = 'input-' + f.id;
+        input.onchange = updateTitlePreview;
+        input.oninput = updateTitlePreview;
+        cell.appendChild(input);
+        container.appendChild(cell);
+      });
+
+      if (titleSettings.enabled && titleSettings.pattern) {
+        document.getElementById('title-preview-section').style.display = 'block';
+      }
+    };
+
+    var updateTitlePreview = function() {
+      if (!titleSettings.enabled || !titleSettings.pattern) return;
+      
+      var newTitle = titleSettings.pattern;
+      
+      fieldDefs.forEach(f => {
+        var input = document.getElementById('input-' + f.id);
+        var val = '';
+        if (input) {
+          val = (f.type === 'checkbox') ? (input.checked ? 'Sí' : 'No') : input.value;
+        }
+        
+        var re = new RegExp('\\{' + escapeRegex(f.name) + '\\}', 'gi');
+        newTitle = newTitle.replace(re, val || '…');
+      });
+      
+      var reTitle = new RegExp('\\{Título\\}', 'gi');
+      newTitle = newTitle.replace(reTitle, originalCardName);
+      
+      document.getElementById('title-preview').innerText = newTitle;
+    };
+
+    function escapeRegex(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    document.getElementById('fields-form').onsubmit = function(e) {
+      e.preventDefault();
+      
+      var newValues = {};
+      var missing = [];
+      
+      fieldDefs.forEach(f => {
+        var input = document.getElementById('input-' + f.id);
+        var val = (f.type === 'checkbox') ? input.checked : input.value;
+        
+        if (f.required && f.type !== 'checkbox' && (!val || String(val).trim() === '')) {
+          missing.push(f.name);
+        }
+        newValues[f.id] = val;
+      });
+      
+      if (missing.length > 0) {
+        alert('Los siguientes campos son requeridos: ' + missing.join(', '));
+        return;
+      }
+      
+      t.set('card', 'shared', 'fieldValues', newValues).then(function() {
+        t.closePopup();
+      });
+    };
+
+    document.getElementById('apply-title').onclick = function() {
+      var newTitle = document.getElementById('title-preview').innerText;
+      var restApi = t.getRestApi();
+      
+      restApi.isAuthorized().then(function(isAuth) {
+        if (!isAuth) {
+          document.getElementById('auth-hint').style.display = 'block';
+          return restApi.authorize({ scope: 'read,write' });
+        }
+      }).then(function() {
+        return t.card('id');
+      }).then(function(card) {
+        return restApi.put('/1/cards/' + card.id, { name: newTitle });
+      }).then(function() {
+        originalCardName = newTitle;
+        t.alert({ message: 'Título actualizado con éxito', duration: 3 });
+      }).catch(function(err) {
+        console.error(err);
+      });
+    };
+  </script>
+</body>
+</html>

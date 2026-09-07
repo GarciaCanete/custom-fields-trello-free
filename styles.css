@@ -1,0 +1,127 @@
+:root {
+  --text-main: #172b4d;
+  --text-sub: #42526e;
+  --text-hint: #5e6c84;
+  --border: #dfe1e6;
+  --bg-form: #f4f5f7;
+  --blue-action: #0052cc;
+  --red-error: #bf2600;
+  --bg-error: #ffebe6;
+  --green-success: #006644;
+  --bg-success: #e3fcef;
+  --yellow-badge-bg: #fff0b3;
+  --yellow-badge-text: #974f0c;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  color: var(--text-main);
+  margin: 0;
+  padding: 10px;
+}
+
+h1, h2, h3 {
+  color: var(--text-main);
+  margin-top: 0;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-hint);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+  width: 100%;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: 3px;
+  background-color: #fafbfc;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--blue-action);
+}
+
+button {
+  background-color: var(--border);
+  border: none;
+  border-radius: 3px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button.primary {
+  background-color: var(--green-success);
+  color: white;
+}
+
+button.primary:hover {
+  background-color: #004d33;
+}
+
+button.secondary {
+  background-color: var(--blue-action);
+  color: white;
+}
+
+/* Grid Layout for Fields */
+.cf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.cf-cell-full {
+  grid-column: 1 / -1;
+}
+
+.cf-cell {
+  /* Default 1 column */
+}
+
+/* Checklist Progress */
+.progress-bar-container {
+  background-color: var(--border);
+  border-radius: 4px;
+  height: 8px;
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-red { background-color: var(--red-error); }
+.progress-orange { background-color: #ff9900; }
+.progress-green { background-color: var(--green-success); }
+
+/* Settings styles */
+.field-item {
+  border: 1px solid var(--border);
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background: white;
+}
+
+.field-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+}

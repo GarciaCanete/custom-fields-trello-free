@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <h3>Gestión de Campos</h3>
+  <div id="fields-list"></div>
+  
+  <hr>
+  
+  <h4>Añadir / Editar Campo</h4>
+  <div class="field-form" style="background: var(--bg-form); padding: 10px; border-radius: 4px;">
+    <input type="hidden" id="field-id">
+    <label>Nombre del campo</label>
+    <input type="text" id="field-name" placeholder="Ej: Prioridad">
+    
+    <div style="display:flex; gap: 10px;">
+      <div style="flex:1;">
+        <label>Tipo</label>
+        <select id="field-type">
+          <option value="text">Texto</option>
+          <option value="textarea">Texto Largo</option>
+          <option value="number">Número</option>
+          <option value="date">Fecha</option>
+          <option value="checkbox">Casilla</option>
+          <option value="list">Lista de opciones</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label>Ancho</label>
+        <select id="field-width">
+          <option value="half">Mitad (50%)</option>
+          <option value="full">Completo (100%)</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="options-container" style="display:none;">
+      <label>Opciones (separadas por coma)</label>
+      <input type="text" id="field-options" placeholder="Opción A, Opción B, ...">
+    </div>
+
+    <div style="margin: 10px 0;">
+      <input type="checkbox" id="field-required"> <label style="display:inline; text-transform: none;">Marcar como requerido</label>
+    </div>
+
+    <button id="save-field" class="primary">Guardar Campo</button>
+    <button id="cancel-edit" style="display:none;">Cancelar</button>
+  </div>
+
+  <hr>
+
+  <h4>Patrón de Título</h4>
+  <div style="background: var(--bg-form); padding: 10px; border-radius: 4px;">
+    <div style="margin-bottom: 10px;">
+      <input type="checkbox" id="title-enabled"> <label style="display:inline; text-transform: none;">Activar actualización automática del título</label>
+    </div>
+    <label>Patrón (ej: {Prioridad} | {Título})</label>
+    <input type="text" id="title-pattern" placeholder="{Campo1} - {Título}">
+    <p style="font-size: 11px; color: var(--text-hint);">Usa {Nombre} para campos y {Título} para el nombre original.</p>
+    <button id="save-settings" class="secondary">Guardar Configuración Global</button>
+  </div>
+
+  <script>
+    var t = TrelloPowerUp.iframe();
+    var fieldDefs = [];
+    var titleSettings = { enabled: false, pattern: '' };
+
+    var renderFields = function() {
+      var container = document.getElementById('fields-list');
+      container.innerHTML = '';
+      
+      fieldDefs.sort((a,b) => a.order - b.order).forEach((f, index) => {
+        var div = document.createElement('div');
+        div.className = 'field-item';
+        div.innerHTML = `
+          <strong>${f.name}</strong> (${f.type}) - ${f.width === 'full' ? '100%' : '50%'} 
+          ${f.required ? '<span style="color:var(--red-error)">[Req]</span>' : ''}
+          <div class="field-actions">
+            <button onclick="editField('${f.id}')">Editar</button>
+            <button onclick="deleteField('${f.id}')">Eliminar</button>
+            <button onclick="moveField('${f.id}', -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+            <button onclick="moveField('${f.id}', 1)" ${index === fieldDefs.length - 1 ? 'disabled' : ''}>↓</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    };
+
+    t.render(function() {
+      return Promise.all([
+        t.get('board', 'shared', 'fieldDefs'),
+        t.get('board', 'shared', 'titlePattern')
+      ]).then(function(data) {
+        fieldDefs = data[0] || [];
+        titleSettings = data[1] || { enabled: false, pattern: '' };
+        
+        document.getElementById('title-enabled').checked = titleSettings.enabled;
+        document.getElementById('title-pattern').value = titleSettings.pattern || '';
+        
+        renderFields();
+      });
+    });
+
+    document.getElementById('field-type').onchange = function() {
+      document.getElementById('options-container').style.display = (this.value === 'list') ? 'block' : 'none';
+    };
+
+    document.getElementById('save-field').onclick = function() {
+      var id = document.getElementById('field-id').value || 'f_' + Date.now();
+      var name = document.getElementById('field-name').value;
+      var type = document.getElementById('field-type').value;
+      var width = document.getElementById('field-width').value;
+      var required = document.getElementById('field-required').checked;
+      var optionsRaw = document.getElementById('field-options').value;
+      var options = optionsRaw ? optionsRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+
+      if (!name) return alert('El nombre es obligatorio');
+
+      var existingIdx = fieldDefs.findIndex(f => f.id === id);
+      if (existingIdx > -1) {
+        fieldDefs[existingIdx] = { ...fieldDefs[existingIdx], name, type, width, required, options };
+      } else {
+        var maxOrder = fieldDefs.length > 0 ? Math.max(...fieldDefs.map(f => f.order)) : -1;
+        fieldDefs.push({ id, name, type, width, required, options, order: maxOrder + 1 });
+      }
+
+      t.set('board', 'shared', 'fieldDefs', fieldDefs).then(() => {
+        resetForm();
+        renderFields();
+      });
+    };
+
+    window.editField = function(id) {
+      var f = fieldDefs.find(f => f.id === id);
+      if (!f) return;
+      document.getElementById('field-id').value = f.id;
+      document.getElementById('field-name').value = f.name;
+      document.getElementById('field-type').value = f.type;
+      document.getElementById('field-width').value = f.width;
+      document.getElementById('field-required').checked = !!f.required;
+      document.getElementById('field-options').value = (f.options || []).join(', ');
+      document.getElementById('options-container').style.display = (f.type === 'list') ? 'block' : 'none';
+      document.getElementById('save-field').innerText = 'Actualizar Campo';
+      document.getElementById('cancel-edit').style.display = 'inline-block';
+    };
+
+    window.deleteField = function(id) {
+      if (!confirm('¿Seguro que quieres eliminar este campo?')) return;
+      fieldDefs = fieldDefs.filter(f => f.id !== id);
+      t.set('board', 'shared', 'fieldDefs', fieldDefs).then(renderFields);
+    };
+
+    window.moveField = function(id, direction) {
+      var idx = fieldDefs.findIndex(f => f.id === id);
+      var otherIdx = idx + direction;
+      if (otherIdx < 0 || otherIdx >= fieldDefs.length) return;
+      
+      var tempOrder = fieldDefs[idx].order;
+      fieldDefs[idx].order = fieldDefs[otherIdx].order;
+      fieldDefs[otherIdx].order = tempOrder;
+      
+      t.set('board', 'shared', 'fieldDefs', fieldDefs).then(renderFields);
+    };
+
+    document.getElementById('cancel-edit').onclick = resetForm;
+
+    function resetForm() {
+      document.getElementById('field-id').value = '';
+      document.getElementById('field-name').value = '';
+      document.getElementById('field-type').value = 'text';
+      document.getElementById('field-width').value = 'half';
+      document.getElementById('field-required').checked = false;
+      document.getElementById('field-options').value = '';
+      document.getElementById('options-container').style.display = 'none';
+      document.getElementById('save-field').innerText = 'Guardar Campo';
+      document.getElementById('cancel-edit').style.display = 'none';
+    }
+
+    document.getElementById('save-settings').onclick = function() {
+      titleSettings.enabled = document.getElementById('title-enabled').checked;
+      titleSettings.pattern = document.getElementById('title-pattern').value;
+      t.set('board', 'shared', 'titlePattern', titleSettings).then(() => {
+        t.closePopup();
+      });
+    };
+  </script>
+</body>
+</html>
